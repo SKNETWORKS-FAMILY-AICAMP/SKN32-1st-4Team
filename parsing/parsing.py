@@ -1,48 +1,44 @@
 import pandas as pd
 from pathlib import Path
 
-# 엑셀 파일들이 들어있는 폴더
-excel_dir = Path("C:\python_workspace\pjoject\parsing\excel_files")
-
-# SQL 저장 파일
-car_type_file = "car_type_insert.sql"
-district_sql_file = "district_insert.sql"
-status_sql_file = "vehicle_registration_status_insert.sql"
-
+excel_dir = Path(r"C:\python_workspace\parsing\excel_files")
 sheet_name = "02.통계표_시군구"
+db_name = "k_car_navigator"
 
-car_type_columns = {
-    "01": 5,   # 승용
-    "02": 9,   # 승합
-    "03": 13,  # 화물
-    "04": 17   # 특수
+vehicle_type_columns = {
+    "01": ("승용", 5),
+    "02": ("승합", 9),
+    "03": ("화물", 13),
+    "04": ("특수", 17)
 }
 
-car_type_sql_file = "car_type_insert.sql"
+def normalize_name(value):
+    return str(value).strip().replace(" ", "")
 
-car_type_names = {
-    "01": "승용",
-    "02": "승합",
-    "03": "화물",
-    "04": "특수"
-}
+def find_existing_region_key(region_keys, sido, sigungu):
+    current_key = f"{sido}-{sigungu}"
 
-with open(car_type_sql_file, "w", encoding="utf-8") as f:
-    f.write("USE car_db;\n\n")
+    for key in region_keys:
+        if not key.startswith(f"{sido}-"):
+            continue
 
-    for code, name in car_type_names.items():
-        f.write(
-            "INSERT IGNORE INTO vehicle_type (code, name) "
-            f"VALUES ('{code}', '{name}');\n"
-        )
+        if current_key in key or key in current_key:
+            return key
 
-all_base = []
-all_status = []
+    return None
 
-# 폴더 안의 모든 xlsx 파일 반복
-for file_path in excel_dir.glob("*.xlsx"):
+all_data = []
+region_district_data = []
+region_keys = []
 
-    print(f"처리 중: {file_path}")
+excel_files = list(excel_dir.glob("*.xlsx"))
+
+if not excel_files:
+    print("엑셀 파일이 없습니다.")
+    exit()
+
+for file_path in excel_files:
+    print(f"읽는 파일: {file_path.name}")
 
     df = pd.read_excel(
         file_path,
@@ -54,15 +50,6 @@ for file_path in excel_dir.glob("*.xlsx"):
     registration_date = str(df.iloc[1, 1]).replace(".", "-") + "-01"
 
     df[0] = df[0].ffill()
-    data_df = df.iloc[4:].copy()
-
-    base = data_df[[0, 1]].copy()
-    base.columns = ["시도", "시군구"]
-    base = base.dropna(subset=["시도", "시군구"])
-    base = base[base["시군구"] != "계"]
-    base = base.drop_duplicates().reset_index(drop=True)
-
-    all_base.append(base)
 
     for idx in range(4, len(df)):
         row = df.iloc[idx]
@@ -73,43 +60,59 @@ for file_path in excel_dir.glob("*.xlsx"):
         if pd.isna(sido) or pd.isna(sigungu):
             continue
 
+        sido = normalize_name(sido)
+        sigungu = normalize_name(sigungu)
+
         if sigungu == "계":
             continue
 
-        for type_code, count_col in car_type_columns.items():
+        existing_key = find_existing_region_key(region_keys, sido, sigungu)
+
+        if existing_key:
+            final_sido, final_sigungu = existing_key.split("-", 1)
+        else:
+            final_sido = sido
+            final_sigungu = sigungu
+            new_key = f"{final_sido}-{final_sigungu}"
+            region_keys.append(new_key)
+
+            region_district_data.append({
+                "시도": final_sido,
+                "시군구": final_sigungu
+            })
+
+        for type_code, (type_name, count_col) in vehicle_type_columns.items():
             vehicles = row[count_col]
 
             if pd.isna(vehicles):
                 continue
 
-            all_status.append({
+            all_data.append({
                 "registration_date": registration_date,
-                "시도": sido,
-                "시군구": sigungu,
-                "type": type_code,
-                "vehicles": int(vehicles)
+                "type_code": type_code,
+                "type_name": type_name,
+                "vehicles": int(vehicles),
+                "시도": final_sido,
+                "시군구": final_sigungu
             })
 
-# 전체 파일의 시도/시군구 합치기
-base_df = pd.concat(all_base, ignore_index=True)
+base_df = pd.DataFrame(region_district_data)
 base_df = base_df.drop_duplicates().reset_index(drop=True)
 
-# region 코드 생성
 regions = base_df[["시도"]].drop_duplicates().reset_index(drop=True)
 regions["region_code"] = [
     str(i + 1).zfill(2) for i in range(len(regions))
 ]
 
-# district 코드 생성
 districts = base_df.merge(regions, on="시도", how="left")
 districts["district_seq"] = districts.groupby("region_code").cumcount().add(1)
+
 districts["district_code"] = (
     districts["region_code"] +
     districts["district_seq"].astype(str).str.zfill(2)
 )
 
-# 상태 데이터에 코드 붙이기
-status_df = pd.DataFrame(all_status)
+status_df = pd.DataFrame(all_data)
 
 status_df = status_df.merge(
     regions,
@@ -123,40 +126,54 @@ status_df = status_df.merge(
     how="left"
 )
 
-import math
+with open("vehicle_type_insert.sql", "w", encoding="utf-8") as f:
+    f.write(f"USE {db_name};\n\n")
 
-# 한 파일당 INSERT 개수
+    for type_code, (type_name, _) in vehicle_type_columns.items():
+        f.write(
+            "INSERT IGNORE INTO vehicle_type (code, name) "
+            f"VALUES ('{type_code}', '{type_name}');\n"
+        )
+
+with open("region_insert.sql", "w", encoding="utf-8") as f:
+    f.write(f"USE {db_name};\n\n")
+
+    for _, row in regions.iterrows():
+        f.write(
+            "INSERT IGNORE INTO region (code, name) "
+            f"VALUES ('{row['region_code']}', '{row['시도']}');\n"
+        )
+
+with open("district_insert.sql", "w", encoding="utf-8") as f:
+    f.write(f"USE {db_name};\n\n")
+
+    for _, row in districts.iterrows():
+        f.write(
+            "INSERT IGNORE INTO district (code, region_code, name) "
+            f"VALUES ('{row['district_code']}', "
+            f"'{row['region_code']}', "
+            f"'{row['시군구']}');\n"
+        )
+
+# vehicle_registration_status_insert.sql 5000개씩 분할 저장
 chunk_size = 5000
-
-# 전체 개수
 total_count = len(status_df)
+file_index = 1
 
-# 파일 개수 계산
-file_count = math.ceil(total_count / chunk_size)
-
-print("전체 INSERT 개수:", total_count)
-print("생성 파일 개수:", file_count)
-
-# 5000개씩 나누어서 저장
-for i in range(file_count):
-
-    start_idx = i * chunk_size
+for start_idx in range(0, total_count, chunk_size):
     end_idx = start_idx + chunk_size
-
     chunk_df = status_df.iloc[start_idx:end_idx]
 
-    file_name = f"vehicle_registration_status_insert_{i + 1}.sql"
+    file_name = f"vehicle_registration_status_insert_{file_index}.sql"
 
     with open(file_name, "w", encoding="utf-8") as f:
-
-        f.write("USE car_db;\n\n")
+        f.write(f"USE {db_name};\n\n")
 
         for _, row in chunk_df.iterrows():
-
             f.write(
                 "INSERT INTO vehicle_registration_status "
                 "(type, registration_date, vehicles, region, district) "
-                f"VALUES ('{row['type']}', "
+                f"VALUES ('{row['type_code']}', "
                 f"'{row['registration_date']}', "
                 f"{row['vehicles']}, "
                 f"'{row['region_code']}', "
@@ -164,9 +181,15 @@ for i in range(file_count):
             )
 
     print(f"{file_name} 생성 완료")
+    file_index += 1
 
+print("vehicle_type_insert.sql 생성 완료")
+print("region_insert.sql 생성 완료")
+print("district_insert.sql 생성 완료")
+print("vehicle_registration_status_insert 분할 생성 완료")
 
+print("읽은 엑셀 파일 수:", len(excel_files))
 print("시도 개수:", len(regions))
 print("시군구 개수:", len(districts))
-print("등록현황 INSERT 개수:", len(status_df))
-print("SQL 파일 생성 완료")
+print("등록현황 개수:", len(status_df))
+print("분할 SQL 파일 개수:", file_index - 1)
