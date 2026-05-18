@@ -52,6 +52,8 @@ class DBService(SqlQueryBuilder):
         '''
         category 존재 여부 확인 후 없으면 INSERT 후 ID 반환
         '''
+        cat_name = self.normalize_category_name(cat_name)
+
         with self.engine.begin() as conn:
             cat_result = self.select_category(CategorySearchDTO(company_id=company_id, category_name=cat_name))
 
@@ -78,6 +80,13 @@ class DBService(SqlQueryBuilder):
                 category_id = result.lastrowid
 
             return category_id
+
+    @staticmethod
+    def normalize_category_name(category_name):
+        category_name = str(category_name or "").strip()
+        if not category_name or category_name.casefold() == "web":
+            return "기타"
+        return category_name
 
     def select_company(self, param_dto:CompanySearchDTO = CompanySearchDTO()) -> list[CompanyEntity]:
         '''
@@ -157,6 +166,119 @@ class DBService(SqlQueryBuilder):
 
         # Entity로 변환
         return [Mapper.to_entity(row, FaqEntity) for row in rows]
+
+    def select_faq_view(
+        self,
+        company_name=None,
+        category_name=None,
+        keyword=None,
+        page=1,
+        size=20,
+    ) -> tuple[list[dict], int]:
+        '''
+        FAQ 조회 화면용 데이터 조회
+        company/category/faq 테이블을 조인하여 회사명, 카테고리명, 질문/답변을 함께 반환한다.
+        '''
+        base_sql = '''
+        FROM faq f
+        JOIN company co ON f.company_id = co.id
+        LEFT JOIN category ca ON f.category_id = ca.id
+        '''
+        where_clauses = []
+        params = {}
+
+        if company_name and company_name != "전체":
+            where_clauses.append("co.name = :company_name")
+            params["company_name"] = company_name
+
+        category_label_sql = '''
+        CASE
+            WHEN ca.name IS NULL OR TRIM(ca.name) = '' OR LOWER(ca.name) = 'web'
+            THEN '기타'
+            ELSE ca.name
+        END
+        '''
+
+        if category_name and category_name != "전체":
+            where_clauses.append(f"{category_label_sql} = :category_name")
+            params["category_name"] = self.normalize_category_name(category_name)
+
+        if keyword:
+            where_clauses.append(
+                f'''
+                (
+                    f.question LIKE :keyword
+                    OR f.answer LIKE :keyword
+                    OR {category_label_sql} LIKE :keyword
+                )
+                '''
+            )
+            params["keyword"] = f"%{keyword}%"
+
+        where_sql = ""
+        if where_clauses:
+            where_sql = " WHERE " + " AND ".join(where_clauses)
+
+        count_sql = "SELECT COUNT(*) " + base_sql + where_sql
+        select_sql = '''
+        SELECT
+            f.id,
+            co.id AS company_id,
+            co.name AS company,
+            ca.id AS category_id,
+            ''' + category_label_sql + ''' AS category,
+            COALESCE(ca.display_order, 999) AS display_order,
+            f.question,
+            f.answer,
+            f.created_at
+        ''' + base_sql + where_sql + '''
+        ORDER BY co.id ASC, display_order ASC, category ASC, f.id ASC
+        LIMIT :limit OFFSET :offset
+        '''
+        params_with_page = {
+            **params,
+            "limit": size,
+            "offset": (page - 1) * size,
+        }
+
+        with self.engine.begin() as conn:
+            total_count = conn.execute(text(count_sql), params).scalar() or 0
+            rows = conn.execute(text(select_sql), params_with_page).fetchall()
+
+        return [dict(row._mapping) for row in rows], total_count
+
+    def select_faq_categories(self, company_name=None) -> list[str]:
+        '''
+        FAQ 조회 화면용 카테고리 목록 조회
+        회사가 선택되면 해당 회사의 카테고리만 반환한다.
+        '''
+        category_label_sql = '''
+        CASE
+            WHEN ca.name IS NULL OR TRIM(ca.name) = '' OR LOWER(ca.name) = 'web'
+            THEN '기타'
+            ELSE ca.name
+        END
+        '''
+        sql = '''
+        SELECT DISTINCT
+            ''' + category_label_sql + ''' AS category,
+            COALESCE(ca.display_order, 999) AS display_order
+        FROM faq f
+        JOIN company co ON f.company_id = co.id
+        LEFT JOIN category ca ON f.category_id = ca.id
+        '''
+        params = {}
+
+        if company_name and company_name != "전체":
+            sql += " WHERE co.name = :company_name"
+            params["company_name"] = company_name
+
+        sql += " ORDER BY display_order ASC, category ASC"
+
+        with self.engine.begin() as conn:
+            rows = conn.execute(text(sql), params).fetchall()
+
+        return [row._mapping["category"] for row in rows]
     
     def get_count_rows(self, table_name, filters) -> int:
         count_sql, count_params = self.build_count_query(
@@ -182,56 +304,52 @@ class DBService(SqlQueryBuilder):
             # 카테고리 캐싱 (DB 조회 최소화)
             category_cache = {}
 
-            with alive_bar(len(faq_list)) as bar:
-                for item in faq_list:
-                    cat_name = item['category_name']
-                    display_order = item['display_order']
-                    question = item['question']
-                    answer = item['answer']
+            for item in faq_list:
+                cat_name = self.normalize_category_name(item.get('category_name'))
+                display_order = item.get('display_order', 999)
+                question = item['question']
+                answer = item['answer']
 
-                    # 카테고리 ID 캐싱 처리
-                    if cat_name in category_cache:
-                        category_id = category_cache[cat_name]
-                    else:
-                        category_id = self.insert_category_to_db(
-                            company_id, cat_name, display_order
-                        )
-                        category_cache[cat_name] = category_id
-
-                    # 중복 FAQ 체크
-                    entities = self.select_faq(FaqSearchDTO(
-                        company_id=company_id,
-                        category_id=category_id,
-                        question=question
-                    ))
-
-                    # 이미 존재하면 스킵
-                    if entities:
-                        skip_count += 1
-                        continue
-
-                    # FAQ INSERT
-                    insert_sql = '''
-                    INSERT INTO faq (company_id, category_id, question, answer)
-                    VALUES (:company_id, :category_id, :question, :answer)
-                    '''
-
-                    result = conn.execute(
-                        text(insert_sql),
-                        {
-                            "company_id": company_id,
-                            "category_id": category_id,
-                            "question": question,
-                            "answer": answer,
-                        }
+                # 카테고리 ID 캐싱 처리
+                if cat_name in category_cache:
+                    category_id = category_cache[cat_name]
+                else:
+                    category_id = self.insert_category_to_db(
+                        company_id, cat_name, display_order
                     )
+                    category_cache[cat_name] = category_id
 
-                    faq_id = result.lastrowid
-                    result_faq_id_list.append(faq_id)
-                    success_count += 1
+                # 중복 FAQ 체크
+                entities = self.select_faq(FaqSearchDTO(
+                    company_id=company_id,
+                    category_id=category_id,
+                    question=question
+                ))
 
-                    # progress bar 증가
-                    bar()
+                # 이미 존재하면 스킵
+                if entities:
+                    skip_count += 1
+                    continue
+
+                # FAQ INSERT
+                insert_sql = '''
+                INSERT INTO faq (company_id, category_id, question, answer)
+                VALUES (:company_id, :category_id, :question, :answer)
+                '''
+
+                result = conn.execute(
+                    text(insert_sql),
+                    {
+                        "company_id": company_id,
+                        "category_id": category_id,
+                        "question": question,
+                        "answer": answer,
+                    }
+                )
+
+                faq_id = result.lastrowid
+                result_faq_id_list.append(faq_id)
+                success_count += 1
 
             # 결과 리포트 출력
             logger.info("==============================================")

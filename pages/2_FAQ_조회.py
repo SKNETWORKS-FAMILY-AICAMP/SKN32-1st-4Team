@@ -1,38 +1,11 @@
-import html
-import json
-import re
-from pathlib import Path
-
-import pandas as pd
 import streamlit as st
+
+from database.db_service import DBService
 
 
 st.set_page_config(page_title="FAQ 조회", page_icon="?", layout="wide")
 
-DATA_DIR = Path(__file__).resolve().parents[1] / "data_backup"
-FAQ_FILES = [
-    ("현대자동차", DATA_DIR / "HYUNDAI_1_faq.json"),
-    ("기아자동차", DATA_DIR / "KIA_2_faq.json"),
-    ("BMW", DATA_DIR / "BMW_3_faq.json"),
-]
-
 PAGE_SIZE = 20
-
-
-def normalize_category(category):
-    category = str(category or "").strip()
-    if not category or category.casefold() == "web":
-        return "기타"
-    return category
-
-
-def html_to_text(value):
-    text = html.unescape(str(value or ""))
-    text = re.sub(r"<br\s*/?>", "\n", text, flags=re.IGNORECASE)
-    text = re.sub(r"</p\s*>", "\n", text, flags=re.IGNORECASE)
-    text = re.sub(r"<[^>]+>", "", text)
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip()
 
 
 def render_pagination(total_pages):
@@ -150,57 +123,57 @@ def render_pagination(total_pages):
             st.rerun()
 
 
-@st.cache_data
-def load_faq_data():
-    rows = []
+@st.cache_resource
+def get_db_service():
+    return DBService()
 
-    for company, path in FAQ_FILES:
-        with path.open("r", encoding="utf-8") as file:
-            items = json.load(file)
 
-        for item in items:
-            answer = item.get("answer", "")
-            rows.append(
-                {
-                    "company": company,
-                    "company_id": item.get("company_id"),
-                    "category": normalize_category(item.get("category_name")),
-                    "display_order": item.get("display_order", 999),
-                    "question": str(item.get("question", "")).strip(),
-                    "answer": answer,
-                    "answer_text": html_to_text(answer),
-                }
-            )
+@st.cache_data(ttl=60)
+def load_companies():
+    db_service = DBService()
+    return [company.name for company in db_service.select_company()]
 
-    return pd.DataFrame(rows).sort_values(
-        ["company_id", "display_order", "category", "question"],
-        kind="stable",
+
+@st.cache_data(ttl=60)
+def load_categories(company_name):
+    db_service = DBService()
+    return db_service.select_faq_categories(company_name)
+
+
+@st.cache_data(ttl=60)
+def load_faq_page(company_name, category_name, keyword, page, size):
+    db_service = DBService()
+    return db_service.select_faq_view(
+        company_name=company_name,
+        category_name=category_name,
+        keyword=keyword,
+        page=page,
+        size=size,
     )
 
 
 st.title("FAQ 조회")
 
 try:
-    df = load_faq_data()
-except FileNotFoundError as error:
-    st.error(f"FAQ 데이터 파일을 찾을 수 없습니다: {error.filename}")
+    get_db_service()
+    company_options = load_companies()
+except Exception as error:
+    st.error("DB에 연결할 수 없습니다. `.env`의 DB 설정과 MySQL 실행 상태를 확인해 주세요.")
+    st.exception(error)
     st.stop()
 
 st.sidebar.header("검색 조건")
 
-companies = ["전체"] + [company for company, _ in FAQ_FILES]
+companies = ["전체"] + company_options
 selected_company = st.sidebar.selectbox("회사", companies)
 
-category_source = df
-if selected_company != "전체":
-    category_source = category_source[category_source["company"] == selected_company]
+try:
+    category_options = load_categories(selected_company)
+except Exception as error:
+    st.error("카테고리 데이터를 조회할 수 없습니다.")
+    st.exception(error)
+    st.stop()
 
-category_options = (
-    category_source[["category", "display_order"]]
-    .drop_duplicates()
-    .sort_values(["display_order", "category"], kind="stable")["category"]
-    .tolist()
-)
 selected_category = st.sidebar.selectbox("카테고리", ["전체"] + category_options)
 keyword = st.sidebar.text_input("질문/답변 검색어").strip()
 
@@ -209,43 +182,23 @@ if st.session_state.get("faq_filter_state") != filter_state:
     st.session_state.faq_page = 1
     st.session_state.faq_filter_state = filter_state
 
-filtered = df.copy()
-
-if selected_company != "전체":
-    filtered = filtered[filtered["company"] == selected_company]
-
-if selected_category != "전체":
-    filtered = filtered[filtered["category"] == selected_category]
-
-if keyword:
-    keyword_mask = (
-        filtered["question"].str.contains(keyword, case=False, na=False, regex=False)
-        | filtered["answer_text"].str.contains(
-            keyword,
-            case=False,
-            na=False,
-            regex=False,
-        )
-        | filtered["category"].str.contains(keyword, case=False, na=False, regex=False)
-    )
-    filtered = filtered[keyword_mask]
-
-metric1, metric2, metric3 = st.columns(3)
-metric1.metric("검색 결과", f"{len(filtered):,}건")
-metric2.metric("회사 수", f"{filtered['company'].nunique():,}개")
-metric3.metric("카테고리 수", f"{filtered['category'].nunique():,}개")
-
-if filtered.empty:
-    st.warning("검색 조건에 해당하는 FAQ가 없습니다.")
-    st.stop()
-
-st.divider()
-
-total_count = len(filtered)
-total_pages = max((total_count - 1) // PAGE_SIZE + 1, 1)
-
 if "faq_page" not in st.session_state:
     st.session_state.faq_page = 1
+
+try:
+    faq_rows, total_count = load_faq_page(
+        selected_company,
+        selected_category,
+        keyword,
+        st.session_state.faq_page,
+        PAGE_SIZE,
+    )
+except Exception as error:
+    st.error("FAQ 데이터를 조회할 수 없습니다.")
+    st.exception(error)
+    st.stop()
+
+total_pages = max((total_count - 1) // PAGE_SIZE + 1, 1)
 
 if st.session_state.faq_page > total_pages:
     st.session_state.faq_page = total_pages
@@ -253,18 +206,37 @@ elif st.session_state.faq_page < 1:
     st.session_state.faq_page = 1
 
 selected_page = st.session_state.faq_page
+if selected_page != 1 and not faq_rows:
+    faq_rows, total_count = load_faq_page(
+        selected_company,
+        selected_category,
+        keyword,
+        selected_page,
+        PAGE_SIZE,
+    )
+    total_pages = max((total_count - 1) // PAGE_SIZE + 1, 1)
+
+metric1, metric2, metric3 = st.columns(3)
+metric1.metric("검색 결과", f"{total_count:,}건")
+metric2.metric("회사 수", f"{len(company_options):,}개")
+metric3.metric("카테고리 수", f"{len(category_options):,}개")
+
+if not faq_rows:
+    st.warning("검색 조건에 해당하는 FAQ가 없습니다.")
+    st.stop()
+
+st.divider()
 
 start_index = (selected_page - 1) * PAGE_SIZE
 end_index = start_index + PAGE_SIZE
-page_df = filtered.iloc[start_index:end_index]
 
 st.caption(
     f"전체 {total_count:,}건 중 {start_index + 1:,}~{min(end_index, total_count):,}건 표시"
 )
 
-for row in page_df.itertuples(index=False):
-    with st.expander(f"[{row.company} / {row.category}] {row.question}"):
-        st.markdown(row.answer, unsafe_allow_html=True)
+for row in faq_rows:
+    with st.expander(f"[{row['company']} / {row['category']}] {row['question']}"):
+        st.markdown(row["answer"], unsafe_allow_html=True)
 
 st.divider()
 render_pagination(total_pages)

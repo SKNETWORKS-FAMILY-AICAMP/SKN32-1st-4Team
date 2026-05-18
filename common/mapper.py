@@ -1,7 +1,7 @@
 '''
 mapper.py
 '''
-from dataclasses import fields, is_dataclass
+from dataclasses import fields, is_dataclass, asdict
 from typing import Type, TypeVar, Optional
 
 T = TypeVar("T")
@@ -15,6 +15,33 @@ class Mapper:
     def to_entity(row, entity_class: Type[T]) -> T:
         data = dict(row._mapping)
         return entity_class(**data)
+    
+    @staticmethod
+    def dto_to_dict(dto, custom_map: Optional[dict[str, str]] = None) -> dict:
+        """
+        DTO(dataclass) → dict 변환
+
+        e.g.
+            data = Mapper.dto_to_dict(
+                dto,
+                custom_map={
+                    "category": "category_id"
+                }
+            )
+        """
+
+        if not is_dataclass(dto):
+            raise TypeError(f"{dto.__class__.__name__} is not a dataclass instance")
+
+        data = asdict(dto)
+
+        # 필드 이름 변경
+        if custom_map:
+            for src, target in custom_map.items():
+                if src in data:
+                    data[target] = data.pop(src)
+
+        return data
 
     @staticmethod
     def to_dto(entity, dto_class: Type[T], custom_map: Optional[dict[str, str]] = None) -> T:

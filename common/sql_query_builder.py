@@ -80,7 +80,7 @@ class SqlQueryBuilder():
         """
         Count SQL 빌드
         """
-        base_sql = "SELECT * FROM "+table_name
+        base_sql = "SELECT COUNT(*) FROM "+table_name
         where_clauses, params = self.build_where_clause(filters)
         if where_clauses:
             base_sql += " WHERE " + " AND ".join(where_clauses)
