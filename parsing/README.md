@@ -25,8 +25,8 @@ python parsing.py
     vehicle_registration_status_insert.sql 생성
 
 테이블 생성 후 
-vehicle_type INSERT
-region INSERT
+
+car_type_insert.sql
 district_insert.sql 
 
 vehicle_registration_status_insert_1.sql
