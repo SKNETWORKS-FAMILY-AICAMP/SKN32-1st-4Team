@@ -9,7 +9,13 @@ from models.models import FaqSearchDTO
 f = FAQService()
 
 res_list, count = f.search_faq_by_param(
-    FaqSearchDTO(company_id=5, keyword="BMW", page=1, size=20, get_pages=True)
+    FaqSearchDTO(company_id=3, page=1, size=20, get_pages=True
+                 , likes= [
+                    ("answer", ["지원"]),
+                    ("question", ["지원"]),
+                ]
+                # , keyword="지원"
+                 )
 )
 print(len(res_list), count)
 

@@ -19,50 +19,30 @@ class FAQService():
 
     def search_faq_by_param(self, param :FaqSearchDTO):
         keyword = str(param.keyword or "").strip()
-
         if keyword:
-            db_param = FaqSearchDTO(
-                faq_id=param.faq_id,
-                company_id=param.company_id,
-                category_id=param.category_id,
-                question=param.question,
-                answer=param.answer,
-                created_at=param.created_at,
-                order_clauses=param.order_clauses,
-            )
-            res = self.__db_service.select_faq(db_param)
-            keyword_lower = keyword.casefold()
-            res = [
-                faq for faq in res
-                if keyword_lower in faq.question.casefold()
-                or keyword_lower in faq.answer.casefold()
-            ]
-            count = len(res)
-
-            if param.get_pages:
-                start = (param.page - 1) * param.size
-                end = start + param.size
-                res = res[start:end]
-        else:
-            res = self.__db_service.select_faq(param)
-
-            filter = Mapper.dto_to_dict(param)
-            filter.pop('page', None)
-            filter.pop('size', None)
-            filter.pop('get_pages', None)
-            filter.pop('total_size', None)
-            filter.pop('order_clauses', None)
-            filter.pop('keyword', None)
-
-            count = self.__db_service.get_count_rows('faq', filter)
+            param.likes = [
+                        ("question", [keyword]),
+                        ("answer", [keyword])
+                    ]
+        res = self.__db_service.select_faq(param)
 
         faq_dto_from_table = [
-            Mapper.to_dto(
-                row,
-                FaqDTO,
-            )
+            Mapper.to_dto(row, FaqDTO)
             for row in res
         ]
+
+        # 1. DTO를 딕셔너리로 변환
+        filter_dict = Mapper.dto_to_dict(param)
+        
+        # 2. WHERE 절 컬럼이 아닌 제어용/특수 필드들을 딕셔너리에서 제거
+        likes_param = filter_dict.pop('likes', [])      # likes 꺼내고 제거
+        orders_param = filter_dict.pop('order_clauses', []) # order_clauses가 있다면 제거
+        
+        # 페이징 관련 필드 제거 (pop을 쓰면 안전하게 지울 수 있습니다)
+        for key in ['page', 'size', 'get_pages', 'total_size', 'keyword']:
+            filter_dict.pop(key, None)
+            
+        count = self.__db_service.get_count_rows('faq', filters=filter_dict, likes=likes_param)
 
         return faq_dto_from_table, count
 

@@ -101,6 +101,7 @@ class DBService(SqlQueryBuilder):
         sql, params = self.build_full_query(
             base_sql=base_sql,
             filters=filters,
+            likes=param_dto.like_clauses or [],
             orders=param_dto.order_clauses or [],
             page=param_dto.page,
             size=param_dto.size,
@@ -127,6 +128,7 @@ class DBService(SqlQueryBuilder):
         sql, params = self.build_full_query(
             base_sql=base_sql,
             filters=filters,
+            likes=param_dto.like_clauses or [],
             orders=param_dto.order_clauses or [],
             page=param_dto.page,
             size=param_dto.size,
@@ -155,11 +157,13 @@ class DBService(SqlQueryBuilder):
         sql, params = self.build_full_query(
             base_sql=base_sql,
             filters=filters,
+            likes=param_dto.likes or [],
             orders=param_dto.order_clauses or [],
             page=param_dto.page,
             size=param_dto.size,
             get_pages=param_dto.get_pages
         )
+        logger.info(sql)
 
         with self.engine.begin() as conn:
             rows = conn.execute(text(sql), params).fetchall()
@@ -167,11 +171,13 @@ class DBService(SqlQueryBuilder):
         # Entity로 변환
         return [Mapper.to_entity(row, FaqEntity) for row in rows]
 
-    def get_count_rows(self, table_name, filters) -> int:
+    def get_count_rows(self, table_name, filters, likes) -> int:
         count_sql, count_params = self.build_count_query(
             table_name=table_name,
-            filters=filters
+            filters=filters,
+            likes=likes
         )
+        logger.info(count_sql)
         with self.engine.begin() as conn:
             count = conn.execute(text(count_sql), count_params).scalar()
         

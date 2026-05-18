@@ -17,6 +17,7 @@ class CrawlItem:
 class FaqSearchDTO(PagingDTO):
     get_pages: bool = False
     order_clauses: Optional[List[Tuple[str, Optional[str]]]] = None
+    likes: Optional[List[Tuple[str, List[Optional[str]]]]] = None
     faq_id: Optional[int] = None
     company_id: Optional[int] = None
     category_id: Optional[int] = None
@@ -30,6 +31,7 @@ class FaqSearchDTO(PagingDTO):
 class CategorySearchDTO(PagingDTO):
     get_pages: bool = False
     order_clauses: Optional[List[Tuple[str, Optional[str]]]] = None
+    like_clauses: Optional[List[Tuple[str, List[Optional[str]]]]] = None
     category_id: Optional[int] = None
     company_id: Optional[int] = None
     category_name: Optional[str] = None
@@ -39,5 +41,6 @@ class CategorySearchDTO(PagingDTO):
 class CompanySearchDTO(PagingDTO):
     get_pages: bool = False
     order_clauses: Optional[List[Tuple[str, Optional[str]]]] = None
+    like_clauses: Optional[List[Tuple[str, List[Optional[str]]]]] = None
     company_id: Optional[int] = None
     company_name: Optional[str] = None
