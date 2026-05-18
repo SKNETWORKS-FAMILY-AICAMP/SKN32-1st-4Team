@@ -10,20 +10,21 @@ from models.models import VehicleRegistrationStatusSearchDTO
 d = DashboardService()
 
 # 차량 현황 조회
-res_list = d.search_dashboard_by_param(
+res_list, total_count = d.search_dashboard_by_param(
     VehicleRegistrationStatusSearchDTO(
                     type= ['01'] # 차량 종류
-                    , region= ['02','04', '05'] # 시/도
-                    , district= ['0501', '0502'] # 시/군/구
-                    , registration_date= [datetime(2020, 4, 1), datetime(2023, 12, 1)] # 등록 월 
+                    # , region= ['02','04', '05'] # 시/도
+                    # , district= ['0501', '0502'] # 시/군/구
+                    # , registration_date= [datetime(2020, 4, 1), datetime(2023, 12, 1)] # 등록 월 
                     # 등록 월 의 경우 일까지 저장되어 있음 (e.g. 2026-04-01)
                     # (DB 에서는 월만 저장하는 타입은 없기 때문에 무조건 -01 추가 해야함)
+                    # ,get_pages=True
                  )
 )
-print(len(res_list))
+print(len(res_list), total_count)
 
-for vrs in res_list:
-    print(vrs.type, vrs.vehicles)
+# for vrs in res_list:
+    # print(vrs.type, vrs.vehicles)
 
 # 차량 타입 조회
 res_get_list = d.get_vehicle_type()

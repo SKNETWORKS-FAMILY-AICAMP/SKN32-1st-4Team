@@ -11,14 +11,14 @@ class DashboardService():
         self.__db_service = DBService()
 
     def search_dashboard_by_param(self, param :VehicleRegistrationStatusSearchDTO):
-        res = self.__db_service.select_vehicle_registration_status(param)
+        res_list, total_count = self.__db_service.select_vehicle_registration_status(param)
 
         dashboard_dto_from_table = [
             Mapper.to_dto(row, VehicleRegistrationStatusDTO)
-            for row in res
+            for row in res_list
         ]
 
-        return dashboard_dto_from_table
+        return dashboard_dto_from_table, total_count
 
     def get_vehicle_type(self):
         return self.__db_service.select_vehicle_type(VehicleTypeSearchDTO(order_clauses=[("code", None)]))

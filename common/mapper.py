@@ -1,6 +1,7 @@
 '''
 mapper.py
 '''
+import dataclasses
 from dataclasses import fields, is_dataclass, asdict
 from typing import Type, TypeVar, Optional
 
@@ -14,7 +15,13 @@ class Mapper:
     @staticmethod
     def to_entity(row, entity_class: Type[T]) -> T:
         data = dict(row._mapping)
-        return entity_class(**data)
+        
+        valid_keys = {f.name for f in dataclasses.fields(entity_class)}
+        
+        # 데이터 중 엔티티 필드에 존재하는 것만 매핑
+        filtered_data = {k: v for k, v in data.items() if k in valid_keys}
+        
+        return entity_class(**filtered_data)
     
     @staticmethod
     def dto_to_dict(dto, custom_map: Optional[dict[str, str]] = None) -> dict:

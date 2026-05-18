@@ -254,11 +254,22 @@ class DBService(SqlQueryBuilder):
 
 
 
-    def select_vehicle_registration_status(self, param_dto:VehicleRegistrationStatusSearchDTO = VehicleRegistrationStatusSearchDTO()) -> list[VehicleRegistrationStatusEntity]:
+    def select_vehicle_registration_status(self, param_dto:VehicleRegistrationStatusSearchDTO = VehicleRegistrationStatusSearchDTO()) -> tuple[list[VehicleRegistrationStatusEntity], int]:
         '''
         조건 기반 차량 등록 현황 조회
         '''
-        base_sql = "SELECT pk, type, registration_date, vehicles, region, district FROM vehicle_registration_status"
+        
+        # 만약 페이징을 한다면.. 총 카운트도 반환
+        if param_dto.get_pages is True:
+            base_sql = """
+                SELECT pk, type, registration_date, vehicles, region, district,
+                        COUNT(*) OVER() as total_count
+                FROM vehicle_registration_status"""
+        else:
+            base_sql = """
+                SELECT pk, type, registration_date, vehicles, region, district
+                FROM vehicle_registration_status"""
+
         list_filters = {
             'type': param_dto.type,
             'region': param_dto.region,
@@ -277,9 +288,16 @@ class DBService(SqlQueryBuilder):
                 bind_elements.append(bindparam(key, expanding=True))
         if where_clauses:
             base_sql += " WHERE " + " AND ".join(where_clauses)
-        
-        logger.info(base_sql)
 
+        with_total_count = param_dto.get_pages
+        if with_total_count is True:
+            page = max(param_dto.page, 1)
+            size = max(param_dto.size, 1)
+
+            offset = (page - 1) * size
+            base_sql += " " + self.build_limit_offset(page=param_dto.page, size=param_dto.size, get_pages=True)
+
+        logger.info(base_sql)
         stmt = text(base_sql)
         if bind_elements:
             stmt = stmt.bindparams(*bind_elements)
@@ -287,8 +305,22 @@ class DBService(SqlQueryBuilder):
         with self.engine.begin() as conn:
             rows = conn.execute(stmt, params).fetchall()
 
+        if rows:
+            if with_total_count is True:
+            # 첫 번째 로우에서 전체 개수(total_count)를 추출
+                total_count = rows[0]._mapping['total_count']
+                # 데이터 목록 (Row 객체를 dict 등으로 변환 가능)
+                data = [Mapper.to_entity(row, VehicleRegistrationStatusEntity) for row in rows]
+            else:
+                total_count = 0
+                data = [Mapper.to_entity(row, VehicleRegistrationStatusEntity) for row in rows]
+
+        else:
+            total_count = 0
+            data = []
+
         # Entity로 변환
-        return [Mapper.to_entity(row, VehicleRegistrationStatusEntity) for row in rows]
+        return data, total_count
     
 
     def select_vehicle_type(self, param_dto:VehicleTypeSearchDTO = VehicleTypeSearchDTO()) -> list[VehicleTypeEntity]:
