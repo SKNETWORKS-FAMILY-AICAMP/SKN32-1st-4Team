@@ -176,10 +176,18 @@ selected_company_id = st.sidebar.selectbox(
     ),
 )
 
+# 기존 방식: 회사 선택 변경 시 카테고리 재조회
+# 개선 방식: 전체 카테고리 캐싱 후 메모리 필터링 사용
 try:
+    all_categories = load_categories(None)
+
     category_options = (
         [] if selected_company_id is None
-        else load_categories(selected_company_id)
+        else [
+            category
+            for category in all_categories
+            if category.company_id == selected_company_id
+        ]
     )
 except Exception as error:
     st.error("카테고리 데이터를 조회할 수 없습니다.")
