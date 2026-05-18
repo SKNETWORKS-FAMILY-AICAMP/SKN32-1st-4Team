@@ -31,7 +31,7 @@ class CategorySearchDTO(PagingDTO):
     order_clauses: Optional[List[Tuple[str, Optional[str]]]] = None
     category_id: Optional[int] = None
     company_id: Optional[int] = None
-    category_name: Optional[int] = None
+    category_name: Optional[str] = None
 
     
 @dataclass
