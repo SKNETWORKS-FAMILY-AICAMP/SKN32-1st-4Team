@@ -1,50 +1,46 @@
 from database.db_service import DBService
-from models.dtos    import *
+from models.models import CategorySearchDTO, CompanySearchDTO, FaqSearchDTO
 
-if __name__=='__main__':
-    d = DBService()
 
-    faqs = d.select_faq()
-    print(len(faqs), type(faqs[0]))
+def print_rows(title, rows, limit=3):
+    print(f"\n[{title}] {len(rows)}건")
+    for row in rows[:limit]:
+        print(row)
 
-    faqs = d.select_faq(FaqSearchDTO(page=1, size=10, get_pages=True))
-    print(len(faqs), type(faqs[0]), faqs[:2])
 
-    faqs = d.select_faq(FaqSearchDTO(page=2, size=10, get_pages=True))
-    print(len(faqs), type(faqs[0]), faqs[:2])
+if __name__ == "__main__":
+    db_service = DBService()
 
-    faqSearchDTO = FaqSearchDTO(page=1, size=10, get_pages=True)
-    faqSearchDTO.order_clauses = [("created_at", "DESC"), ("id", None)]
-    faqs = d.select_faq(faqSearchDTO)
-    print(len(faqs), type(faqs[0]), faqs[:2])
+    companies = db_service.select_company()
+    categories = db_service.select_category()
+    faqs = db_service.select_faq()
 
-    faqSearchDTO = FaqSearchDTO(page=1, size=10, get_pages=True, company_id=2)
-    faqSearchDTO.order_clauses = [("created_at", "DESC"), ("id", None)]
-    faqs = d.select_faq(faqSearchDTO)
-    print(len(faqs), type(faqs[0]), faqs[:2])
+    print_rows("회사", companies)
+    print_rows("카테고리", categories)
+    print_rows("FAQ", faqs)
 
-    cate = d.select_category()
-    print(len(cate), type(cate[0]))
+    faq_search = FaqSearchDTO(page=1, size=10, get_pages=True)
+    faq_search.order_clauses = [("created_at", "DESC"), ("id", "DESC")]
+    print_rows("FAQ 최신 10건", db_service.select_faq(faq_search), limit=10)
 
-    cateSearchDTO = CategorySearchDTO(page=2, size=10, get_pages=True)
-    cateSearchDTO.order_clauses = [("display_order", "DESC"), ("id", None)]
-    cate = d.select_category(cateSearchDTO)
-    print(len(cate), type(cate[0]), cate[:2])
+    for company in companies:
+        company_categories = db_service.select_category(
+            CategorySearchDTO(company_id=company.id)
+        )
+        company_faqs = db_service.select_faq(FaqSearchDTO(company_id=company.id))
+        print(
+            f"\n{company.name}: "
+            f"카테고리 {len(company_categories)}건, FAQ {len(company_faqs)}건"
+        )
 
-    cateSearchDTO = CategorySearchDTO(page=1, size=10, get_pages=True, company_id=2)
-    cateSearchDTO.order_clauses = [("display_order", "DESC"), ("id", None)]
-    cate = d.select_category(cateSearchDTO)
-    print(len(cate), type(cate[0]), cate[:2])
-
-    company = d.select_company()
-    print(len(company), type(company[0]))
-
-    cateSearchDTO = CompanySearchDTO(page=2, size=10, get_pages=True)
-    cateSearchDTO.order_clauses = [("id", "desc")]
-    company = d.select_company(cateSearchDTO)
-    print(len(company))
-
-    cateSearchDTO = CompanySearchDTO(page=1, size=10, get_pages=True, company_id=2)
-    cateSearchDTO.order_clauses = [("id", "desc")]
-    company = d.select_company(cateSearchDTO)
-    print(len(company), type(company[0]), company[:2])
+    bmw = db_service.select_company(CompanySearchDTO(company_name="BMW"))
+    if bmw:
+        faq_rows, total_count = db_service.select_faq_view(
+            company_name="BMW",
+            category_name="기타",
+            page=1,
+            size=5,
+        )
+        print(f"\n[BMW / 기타] {total_count}건")
+        for row in faq_rows:
+            print(row["question"])

@@ -218,12 +218,3 @@ INSERT INTO district (code, region_code, name) VALUES
 ('1709','17','익산시'),('1710','17','임실군'),('1711','17','장수군'),('1712','17','전주시 덕진구'),
 ('1713','17','전주시 완산구'),('1714','17','정읍시'),('1715','17','진안군');
 
--- 테스트 데이터
-INSERT INTO company (name) VALUES ('회사A');
-INSERT INTO company (name) VALUES ('회사B');
-INSERT INTO category (company_id, name, display_order) VALUES (2, '결제', 1);
-INSERT INTO category (company_id, name, display_order) VALUES (2, '회원가입', 2);
-INSERT INTO faq (company_id, question, answer) VALUES (1, '배송 언제 오나요?', '3~5일 걸립니다.');
-INSERT INTO faq (company_id, question, answer) VALUES (1, '환불 가능할까요?', '7일 이내 가능합니다.');
-INSERT INTO faq (company_id, category_id, question, answer) VALUES (2, 1, '결제 실패 시?', '카드사 문의');
-INSERT INTO faq (company_id, category_id, question, answer) VALUES (2, 2, '회원가입 방법?', '홈페이지 회원가입');
