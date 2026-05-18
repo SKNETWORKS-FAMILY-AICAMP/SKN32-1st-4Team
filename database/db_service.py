@@ -163,7 +163,7 @@ class DBService(SqlQueryBuilder):
             size=param_dto.size,
             get_pages=param_dto.get_pages
         )
-        logger.info(sql)
+        logger.debug(sql)
 
         with self.engine.begin() as conn:
             rows = conn.execute(text(sql), params).fetchall()
@@ -177,7 +177,7 @@ class DBService(SqlQueryBuilder):
             filters=filters,
             likes=likes
         )
-        logger.info(count_sql)
+        logger.debug(count_sql)
         with self.engine.begin() as conn:
             count = conn.execute(text(count_sql), count_params).scalar()
         
