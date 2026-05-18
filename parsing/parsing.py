@@ -1,159 +1,14 @@
 import pandas as pd
-import json
-import pymysql
+from pathlib import Path
 
-file_path = "sample.xlsx"
+# 엑셀 파일들이 들어있는 폴더
+excel_dir = Path("C:\python_workspace\pjoject\parsing\excel_files")
 
-# 엑셀 읽기
-df = pd.read_excel(
-    file_path,
-    sheet_name="02.통계표_시군구",
-    header=None,
-    engine="openpyxl"
-)
+# SQL 저장 파일
+district_sql_file = "district_insert.sql"
+status_sql_file = "vehicle_registration_status_insert.sql"
 
-# 조회년월 추출
-search_date = str(df.iloc[1, 1]).replace(".", "-")
-
-# 시도 컬럼 결측값 채우기
-df[0] = df[0].ffill()
-
-result = []
-
-# 차량 타입별 "계" 컬럼
-car_type_columns = {
-    "승용": 5,
-    "승합": 9,
-    "화물": 13,
-    "특수": 17
-}
-
-# 실제 데이터 시작 부분부터 반복
-for idx in range(4, len(df)):
-
-    row = df.iloc[idx]
-
-    sido = row[0]
-    sigungu = row[1]
-
-    # 시군구가 비어있으면 스킵
-    if pd.isna(sigungu):
-        continue
-
-    # 합계 행 제외
-    if sigungu == "계":
-        continue
-
-    for car_type, count_col in car_type_columns.items():
-
-        value = row[count_col]
-
-        # 값이 없는 경우 제외
-        if pd.isna(value):
-            continue
-
-        result.append({
-            "조회년월": search_date,
-            "시도": sido,
-            "시군구": sigungu,
-            "승용차타입": car_type,
-            "차량수(계)": int(value)
-        })
-
-# JSON 출력
-# print(json.dumps(
-    result,
-    ensure_ascii=False,
-    indent=4
-# ))
-
-
-
-# # ------------------------------------------------------------------------------
-
-import pandas as pd
-
-file_path = "sample.xlsx"
-
-df = pd.read_excel(
-    file_path,
-    sheet_name="02.통계표_시군구",
-    header=None,
-    engine="openpyxl"
-)
-
-df[0] = df[0].ffill()
-
-data_df = df.iloc[4:].copy()
-
-districts = data_df[[0, 1]].copy()
-districts.columns = ["시도", "시군구"]
-
-districts = districts.dropna(subset=["시도", "시군구"])
-districts = districts[districts["시군구"] != "계"]
-districts = districts.drop_duplicates().reset_index(drop=True)
-
-regions = districts[["시도"]].drop_duplicates().reset_index(drop=True)
-regions["region_code"] = [
-    str(i + 1).zfill(2) for i in range(len(regions))
-]
-
-districts = districts.merge(regions, on="시도", how="left")
-
-districts["district_seq"] = (
-    districts.groupby("region_code")
-    .cumcount()
-    .add(1)
-)
-
-districts["district_code"] = (
-    districts["region_code"] +
-    districts["district_seq"].astype(str).str.zfill(2)
-)
-
-print("시도 개수:", len(regions))
-print("시군구 개수:", len(districts))
-
-with open("district_insert.sql", "w", encoding="utf-8") as f:
-    f.write("USE car_db;\n\n")
-
-    f.write("-- region insert\n")
-    for _, row in regions.iterrows():
-        f.write(
-            "INSERT IGNORE INTO region (code, name) "
-            f"VALUES ('{row['region_code']}', '{row['시도']}');\n"
-        )
-
-    f.write("\n-- district insert\n")
-    for _, row in districts.iterrows():
-        f.write(
-            "INSERT IGNORE INTO district (code, region_code, name) "
-            f"VALUES ('{row['district_code']}', "
-            f"'{row['region_code']}', "
-            f"'{row['시군구']}');\n"
-        )
-
-# print("district_insert.sql 파일 생성 완료")
-
-
-# print(districts["시도"].value_counts())
-
-
-file_path = "sample.xlsx"
-
-df = pd.read_excel(
-    file_path,
-    sheet_name="02.통계표_시군구",
-    header=None,
-    engine="openpyxl"
-)
-
-# 조회년월: 2026.04 -> 2026-04-01
-registration_date = str(df.iloc[1, 1]).replace(".", "-") + "-01"
-
-df[0] = df[0].ffill()
-
-data_df = df.iloc[4:].copy()
+sheet_name = "02.통계표_시군구"
 
 car_type_columns = {
     "01": 5,   # 승용
@@ -162,77 +17,137 @@ car_type_columns = {
     "04": 17   # 특수
 }
 
-# region 코드 생성
-base = data_df[[0, 1]].copy()
-base.columns = ["시도", "시군구"]
-base = base.dropna(subset=["시도", "시군구"])
-base = base[base["시군구"] != "계"]
-base = base.drop_duplicates().reset_index(drop=True)
+all_base = []
+all_status = []
 
-regions = base[["시도"]].drop_duplicates().reset_index(drop=True)
+# 폴더 안의 모든 xlsx 파일 반복
+for file_path in excel_dir.glob("*.xlsx"):
+
+    print(f"처리 중: {file_path}")
+
+    df = pd.read_excel(
+        file_path,
+        sheet_name=sheet_name,
+        header=None,
+        engine="openpyxl"
+    )
+
+    registration_date = str(df.iloc[1, 1]).replace(".", "-") + "-01"
+
+    df[0] = df[0].ffill()
+    data_df = df.iloc[4:].copy()
+
+    base = data_df[[0, 1]].copy()
+    base.columns = ["시도", "시군구"]
+    base = base.dropna(subset=["시도", "시군구"])
+    base = base[base["시군구"] != "계"]
+    base = base.drop_duplicates().reset_index(drop=True)
+
+    all_base.append(base)
+
+    for idx in range(4, len(df)):
+        row = df.iloc[idx]
+
+        sido = row[0]
+        sigungu = row[1]
+
+        if pd.isna(sido) or pd.isna(sigungu):
+            continue
+
+        if sigungu == "계":
+            continue
+
+        for type_code, count_col in car_type_columns.items():
+            vehicles = row[count_col]
+
+            if pd.isna(vehicles):
+                continue
+
+            all_status.append({
+                "registration_date": registration_date,
+                "시도": sido,
+                "시군구": sigungu,
+                "type": type_code,
+                "vehicles": int(vehicles)
+            })
+
+# 전체 파일의 시도/시군구 합치기
+base_df = pd.concat(all_base, ignore_index=True)
+base_df = base_df.drop_duplicates().reset_index(drop=True)
+
+# region 코드 생성
+regions = base_df[["시도"]].drop_duplicates().reset_index(drop=True)
 regions["region_code"] = [
     str(i + 1).zfill(2) for i in range(len(regions))
 ]
 
-districts = base.merge(regions, on="시도", how="left")
+# district 코드 생성
+districts = base_df.merge(regions, on="시도", how="left")
 districts["district_seq"] = districts.groupby("region_code").cumcount().add(1)
 districts["district_code"] = (
     districts["region_code"] +
     districts["district_seq"].astype(str).str.zfill(2)
 )
 
-result = []
+# 상태 데이터에 코드 붙이기
+status_df = pd.DataFrame(all_status)
 
-for idx in range(4, len(df)):
-    row = df.iloc[idx]
+status_df = status_df.merge(
+    regions,
+    on="시도",
+    how="left"
+)
 
-    sido = row[0]
-    sigungu = row[1]
+status_df = status_df.merge(
+    districts[["시도", "시군구", "district_code"]],
+    on=["시도", "시군구"],
+    how="left"
+)
 
-    if pd.isna(sido) or pd.isna(sigungu):
-        continue
+import math
 
-    if sigungu == "계":
-        continue
+# 한 파일당 INSERT 개수
+chunk_size = 5000
 
-    matched = districts[
-        (districts["시도"] == sido) &
-        (districts["시군구"] == sigungu)
-    ]
+# 전체 개수
+total_count = len(status_df)
 
-    if matched.empty:
-        continue
+# 파일 개수 계산
+file_count = math.ceil(total_count / chunk_size)
 
-    region_code = matched.iloc[0]["region_code"]
-    district_code = matched.iloc[0]["district_code"]
+print("전체 INSERT 개수:", total_count)
+print("생성 파일 개수:", file_count)
 
-    for type_code, count_col in car_type_columns.items():
-        vehicles = row[count_col]
+# 5000개씩 나누어서 저장
+for i in range(file_count):
 
-        if pd.isna(vehicles):
-            continue
+    start_idx = i * chunk_size
+    end_idx = start_idx + chunk_size
 
-        result.append({
-            "type": type_code,
-            "registration_date": registration_date,
-            "vehicles": int(vehicles),
-            "region": region_code,
-            "district": district_code
-        })
+    chunk_df = status_df.iloc[start_idx:end_idx]
 
-with open("vehicle_registration_status_insert.sql", "w", encoding="utf-8") as f:
-    f.write("USE car_db;\n\n")
+    file_name = f"vehicle_registration_status_insert_{i + 1}.sql"
 
-    for row in result:
-        f.write(
-            "INSERT INTO vehicle_registration_status "
-            "(type, registration_date, vehicles, region, district) "
-            f"VALUES ('{row['type']}', "
-            f"'{row['registration_date']}', "
-            f"{row['vehicles']}, "
-            f"'{row['region']}', "
-            f"'{row['district']}');\n"
-        )
+    with open(file_name, "w", encoding="utf-8") as f:
 
-print("생성된 INSERT 개수:", len(result))
-print("vehicle_registration_status_insert.sql 생성 완료")
+        f.write("USE car_db;\n\n")
+
+        for _, row in chunk_df.iterrows():
+
+            f.write(
+                "INSERT INTO vehicle_registration_status "
+                "(type, registration_date, vehicles, region, district) "
+                f"VALUES ('{row['type']}', "
+                f"'{row['registration_date']}', "
+                f"{row['vehicles']}, "
+                f"'{row['region_code']}', "
+                f"'{row['district_code']}');\n"
+            )
+
+    print(f"{file_name} 생성 완료")
+
+    
+print("시도 개수:", len(regions))
+print("시군구 개수:", len(districts))
+print("등록현황 INSERT 개수:", len(status_df))
+print("SQL 파일 생성 완료")
