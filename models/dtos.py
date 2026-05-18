@@ -5,7 +5,7 @@ dto.py
 '''
 from typing import Optional, Dict, List, Tuple
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 
 @dataclass
@@ -30,4 +30,14 @@ class CategoryDTO:
     company_id: int
     name: str
     display_order: int
+
+
+
+@dataclass
+class VehicleRegistrationStatusDTO:
+    type: str
+    region: str
+    district: str
+    registration_date: date
+    vehicles: int
     

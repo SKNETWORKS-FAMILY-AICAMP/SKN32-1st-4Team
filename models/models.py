@@ -1,6 +1,6 @@
 from typing import Optional, Dict, List, Tuple
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 from common.pagination import PagingDTO
 
@@ -44,3 +44,43 @@ class CompanySearchDTO(PagingDTO):
     like_clauses: Optional[List[Tuple[str, List[Optional[str]]]]] = None
     company_id: Optional[int] = None
     company_name: Optional[str] = None
+
+
+
+
+@dataclass
+class VehicleRegistrationStatusSearchDTO(PagingDTO):
+    get_pages: bool = False
+    order_clauses: Optional[List[Tuple[str, Optional[str]]]] = None
+    likes: Optional[List[Tuple[str, List[Optional[str]]]]] = None
+    type: Optional[List[str]] = None
+    region: Optional[List[str]] = None
+    district: Optional[List[str]] = None
+    registration_date: Optional[List[date]] = None
+
+
+@dataclass
+class VehicleTypeSearchDTO(PagingDTO):
+    get_pages: bool = False
+    order_clauses: Optional[List[Tuple[str, Optional[str]]]] = None
+    like_clauses: Optional[List[Tuple[str, List[Optional[str]]]]] = None
+    code: Optional[int] = None
+    name: Optional[str] = None
+
+
+@dataclass
+class RegionSearchDTO(PagingDTO):
+    get_pages: bool = False
+    order_clauses: Optional[List[Tuple[str, Optional[str]]]] = None
+    like_clauses: Optional[List[Tuple[str, List[Optional[str]]]]] = None
+    code: Optional[int] = None
+    name: Optional[str] = None
+
+
+@dataclass
+class DistrictSearchDTO(PagingDTO):
+    get_pages: bool = False
+    order_clauses: Optional[List[Tuple[str, Optional[str]]]] = None
+    like_clauses: Optional[List[Tuple[str, List[Optional[str]]]]] = None
+    code: Optional[int] = None
+    name: Optional[str] = None

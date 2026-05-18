@@ -53,4 +53,4 @@ class VehicleRegistrationStatusEntity:
     registration_date: date
     vehicles: int
     region: str  # CHAR(2)
-    district: str  # CHAR(2)
+    district: str  # CHAR(4)

@@ -1,6 +1,6 @@
 from common.logger import logger
 from alive_progress import alive_bar
-from sqlalchemy import text
+from sqlalchemy import text, bindparam
 from database.db import get_engine
 from common.sql_query_builder import SqlQueryBuilder
 from common.mapper import Mapper
@@ -101,7 +101,7 @@ class DBService(SqlQueryBuilder):
         sql, params = self.build_full_query(
             base_sql=base_sql,
             filters=filters,
-            likes=param_dto.like_clauses or [],
+            likes= [],
             orders=param_dto.order_clauses or [],
             page=param_dto.page,
             size=param_dto.size,
@@ -128,7 +128,7 @@ class DBService(SqlQueryBuilder):
         sql, params = self.build_full_query(
             base_sql=base_sql,
             filters=filters,
-            likes=param_dto.like_clauses or [],
+            likes= [],
             orders=param_dto.order_clauses or [],
             page=param_dto.page,
             size=param_dto.size,
@@ -250,3 +250,123 @@ class DBService(SqlQueryBuilder):
             logger.info("==============================================")
 
             return result_faq_id_list
+
+
+
+
+    def select_vehicle_registration_status(self, param_dto:VehicleRegistrationStatusSearchDTO = VehicleRegistrationStatusSearchDTO()) -> list[VehicleRegistrationStatusEntity]:
+        '''
+        조건 기반 차량 등록 현황 조회
+        '''
+        base_sql = "SELECT pk, type, registration_date, vehicles, region, district FROM vehicle_registration_status"
+        list_filters = {
+            'type': param_dto.type,
+            'region': param_dto.region,
+            'district': param_dto.district,
+            'registration_date': param_dto.registration_date
+        }
+        
+        where_clauses = []
+        params = {}
+        bind_elements = []
+        
+        for key, values in list_filters.items():
+            if values:  # None이 아니고 빈 리스트가 아닌 경우만 포함
+                where_clauses.append(f"{key} IN :{key}")
+                params[key] = tuple(values)
+                bind_elements.append(bindparam(key, expanding=True))
+        if where_clauses:
+            base_sql += " WHERE " + " AND ".join(where_clauses)
+        
+        logger.info(base_sql)
+
+        stmt = text(base_sql)
+        if bind_elements:
+            stmt = stmt.bindparams(*bind_elements)
+
+        with self.engine.begin() as conn:
+            rows = conn.execute(stmt, params).fetchall()
+
+        # Entity로 변환
+        return [Mapper.to_entity(row, VehicleRegistrationStatusEntity) for row in rows]
+    
+
+    def select_vehicle_type(self, param_dto:VehicleTypeSearchDTO = VehicleTypeSearchDTO()) -> list[VehicleTypeEntity]:
+        '''
+        조건 기반 차량 타입 조회
+        '''
+        base_sql = "SELECT code, name FROM vehicle_type"
+        filters = {
+            "code": param_dto.code,
+            "name": param_dto.name,
+        }
+
+        sql, params = self.build_full_query(
+            base_sql=base_sql,
+            filters=filters,
+            likes= [],
+            orders=param_dto.order_clauses or [],
+            page=param_dto.page,
+            size=param_dto.size,
+            get_pages=param_dto.get_pages
+        )
+
+        with self.engine.begin() as conn:
+            rows = conn.execute(text(sql), params).fetchall()
+
+        # Entity로 변환
+        return [Mapper.to_entity(row, VehicleTypeEntity) for row in rows]
+    
+
+    def select_region(self, param_dto:RegionSearchDTO = RegionSearchDTO()) -> list[RegionEntity]:
+        '''
+        조건 기반 시/도 조회
+        '''
+        base_sql = "SELECT code, name FROM region"
+        filters = {
+            "code": param_dto.code,
+            "name": param_dto.name,
+        }
+
+        sql, params = self.build_full_query(
+            base_sql=base_sql,
+            filters=filters,
+            likes= [],
+            orders=param_dto.order_clauses or [],
+            page=param_dto.page,
+            size=param_dto.size,
+            get_pages=param_dto.get_pages
+        )
+
+        with self.engine.begin() as conn:
+            rows = conn.execute(text(sql), params).fetchall()
+
+        # Entity로 변환
+        return [Mapper.to_entity(row, RegionEntity) for row in rows]
+    
+
+    def select_district(self, param_dto:DistrictSearchDTO = DistrictSearchDTO()) -> list[DistrictEntity]:
+        '''
+        조건 기반 시/군/구 조회
+        '''
+        base_sql = "SELECT code, region_code, name FROM district"
+        filters = {
+            "code": param_dto.code,
+            "name": param_dto.name,
+        }
+
+        sql, params = self.build_full_query(
+            base_sql=base_sql,
+            filters=filters,
+            likes= [],
+            orders=param_dto.order_clauses or [],
+            page=param_dto.page,
+            size=param_dto.size,
+            get_pages=param_dto.get_pages
+        )
+
+        with self.engine.begin() as conn:
+            rows = conn.execute(text(sql), params).fetchall()
+
+        # Entity로 변환
+        return [Mapper.to_entity(row, DistrictEntity) for row in rows]
