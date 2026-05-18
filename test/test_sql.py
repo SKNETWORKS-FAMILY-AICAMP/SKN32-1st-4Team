@@ -1,5 +1,11 @@
+from pathlib import Path
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
 from database.db_service import DBService
 from models.models import CategorySearchDTO, CompanySearchDTO, FaqSearchDTO
+from service.faq_service import FAQService
 
 
 def print_rows(title, rows, limit=3):
@@ -35,12 +41,12 @@ if __name__ == "__main__":
 
     bmw = db_service.select_company(CompanySearchDTO(company_name="BMW"))
     if bmw:
-        faq_rows, total_count = db_service.select_faq_view(
-            company_name="BMW",
-            category_name="기타",
+        faq_rows, total_count = FAQService().search_faq_by_param(FaqSearchDTO(
+            company_id=bmw[0].id,
             page=1,
             size=5,
-        )
-        print(f"\n[BMW / 기타] {total_count}건")
-        for row in faq_rows:
-            print(row["question"])
+            get_pages=True,
+        ))
+        print(f"\n[BMW] {total_count}건")
+        for faq in faq_rows:
+            print(faq.question)

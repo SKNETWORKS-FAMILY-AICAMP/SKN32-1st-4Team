@@ -22,6 +22,7 @@ class FaqSearchDTO(PagingDTO):
     category_id: Optional[int] = None
     question: Optional[str] = None
     answer: Optional[str] = None
+    keyword: Optional[str] = None
     created_at: Optional[datetime] = None
 
 

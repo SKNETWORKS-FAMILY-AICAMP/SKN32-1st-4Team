@@ -1,6 +1,7 @@
 import streamlit as st
 
-from database.db_service import DBService
+from models.models import FaqSearchDTO
+from service.faq_service import FAQService
 
 
 st.set_page_config(page_title="FAQ 조회", page_icon="?", layout="wide")
@@ -124,38 +125,39 @@ def render_pagination(total_pages):
 
 
 @st.cache_resource
-def get_db_service():
-    return DBService()
+def get_faq_service():
+    return FAQService()
 
 
 @st.cache_data(ttl=60)
 def load_companies():
-    db_service = DBService()
-    return [company.name for company in db_service.select_company()]
+    faq_service = FAQService()
+    return faq_service.get_companies()
 
 
 @st.cache_data(ttl=60)
-def load_categories(company_name):
-    db_service = DBService()
-    return db_service.select_faq_categories(company_name)
+def load_categories(company_id):
+    faq_service = FAQService()
+    return faq_service.get_categories(company_id)
 
 
 @st.cache_data(ttl=60)
-def load_faq_page(company_name, category_name, keyword, page, size):
-    db_service = DBService()
-    return db_service.select_faq_view(
-        company_name=company_name,
-        category_name=category_name,
-        keyword=keyword,
+def load_faq_page(company_id, category_id, keyword, page, size):
+    faq_service = FAQService()
+    return faq_service.search_faq_by_param(FaqSearchDTO(
+        company_id=company_id,
+        category_id=category_id,
+        keyword=keyword or None,
         page=page,
         size=size,
-    )
+        get_pages=True,
+    ))
 
 
 st.title("FAQ 조회")
 
 try:
-    get_db_service()
+    get_faq_service()
     company_options = load_companies()
 except Exception as error:
     st.error("DB에 연결할 수 없습니다. `.env`의 DB 설정과 MySQL 실행 상태를 확인해 주세요.")
@@ -164,20 +166,41 @@ except Exception as error:
 
 st.sidebar.header("검색 조건")
 
-companies = ["전체"] + company_options
-selected_company = st.sidebar.selectbox("회사", companies)
+company_name_by_id = {company.id: company.name for company in company_options}
+company_ids = [None] + [company.id for company in company_options]
+selected_company_id = st.sidebar.selectbox(
+    "회사",
+    company_ids,
+    format_func=lambda company_id: (
+        "전체" if company_id is None else company_name_by_id[company_id]
+    ),
+)
 
 try:
-    category_options = load_categories(selected_company)
+    category_options = (
+        [] if selected_company_id is None
+        else load_categories(selected_company_id)
+    )
 except Exception as error:
     st.error("카테고리 데이터를 조회할 수 없습니다.")
     st.exception(error)
     st.stop()
 
-selected_category = st.sidebar.selectbox("카테고리", ["전체"] + category_options)
+category_name_by_id = {
+    category.id: FAQService.normalize_category_name(category.name)
+    for category in category_options
+}
+category_ids = [None] + [category.id for category in category_options]
+selected_category_id = st.sidebar.selectbox(
+    "카테고리",
+    category_ids,
+    format_func=lambda category_id: (
+        "전체" if category_id is None else category_name_by_id[category_id]
+    ),
+)
 keyword = st.sidebar.text_input("질문/답변 검색어").strip()
 
-filter_state = (selected_company, selected_category, keyword)
+filter_state = (selected_company_id, selected_category_id, keyword)
 if st.session_state.get("faq_filter_state") != filter_state:
     st.session_state.faq_page = 1
     st.session_state.faq_filter_state = filter_state
@@ -187,8 +210,8 @@ if "faq_page" not in st.session_state:
 
 try:
     faq_rows, total_count = load_faq_page(
-        selected_company,
-        selected_category,
+        selected_company_id,
+        selected_category_id,
         keyword,
         st.session_state.faq_page,
         PAGE_SIZE,
@@ -208,8 +231,8 @@ elif st.session_state.faq_page < 1:
 selected_page = st.session_state.faq_page
 if selected_page != 1 and not faq_rows:
     faq_rows, total_count = load_faq_page(
-        selected_company,
-        selected_category,
+        selected_company_id,
+        selected_category_id,
         keyword,
         selected_page,
         PAGE_SIZE,
@@ -234,9 +257,9 @@ st.caption(
     f"전체 {total_count:,}건 중 {start_index + 1:,}~{min(end_index, total_count):,}건 표시"
 )
 
-for row in faq_rows:
-    with st.expander(f"[{row['company']} / {row['category']}] {row['question']}"):
-        st.markdown(row["answer"], unsafe_allow_html=True)
+for faq in faq_rows:
+    with st.expander(faq.question):
+        st.markdown(faq.answer, unsafe_allow_html=True)
 
 st.divider()
 render_pagination(total_pages)
