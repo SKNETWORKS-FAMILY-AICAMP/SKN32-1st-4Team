@@ -1,7 +1,3 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 import json
 from pathlib import Path
 
@@ -10,7 +6,7 @@ import pydeck as pdk
 import plotly.express as px
 import pandas as pd
 
-from service.vehicle_service import get_vehicle_data_from_db
+from service.dashboard_service import DashboardService
 
 
 # -----------------------------
@@ -83,7 +79,7 @@ def build_vehicle_geojson(region_df, json_path=GEOJSON_PATH):
 # -----------------------------
 # 데이터 로드 및 등록월 가공
 # -----------------------------
-df = get_vehicle_data_from_db()
+df = DashboardService().get_vehicle_data_from_db()
 
 # 등록월 → 연-월 만 표시 (2020-01-01 → 2020-01)
 df["등록월"] = pd.to_datetime(df["등록월"]).dt.strftime("%Y-%m")
