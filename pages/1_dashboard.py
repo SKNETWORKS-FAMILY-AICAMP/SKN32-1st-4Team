@@ -12,7 +12,7 @@ from service.dashboard_service import DashboardService
 # -----------------------------
 # GeoJSON 설정
 # -----------------------------
-GEOJSON_PATH = Path("data/skorea-provinces-2018-geo.json")
+GEOJSON_PATH = Path("pages/assets/data/skorea-provinces-2018-geo.json")
 
 DB_TO_GEO_NAME = {
     "서울": "서울특별시",
