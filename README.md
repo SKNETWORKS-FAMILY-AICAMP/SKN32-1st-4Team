@@ -50,4 +50,46 @@ SK Networks AI CAMP 32기
 
 ## 실제 동작 화면
 
+
+### 환경설정
+
+* MySQL 데이터베이스 8.0 이상
+* Python 라이브러리:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## `.env` 파일 설정
+
+- 프로젝트 실행을 위해 루트 디렉토리에 `.env` 파일 생성 필요
+- `.env` 파일에 아래 환경변수 작성 필요
+
+```dotenv
+# Database 설정
+DB_HOST={DB 주소}
+DB_PORT={DB 포트}
+DB_USER={DB 사용자명}
+DB_PASSWORD={DB 비밀번호}
+DB_NAME=K_Car_Navigator
+
+# 크롤링 관련 설정
+CRAWL_URL=https://www.hyundai.com/kr/ko/e/customer/center/faq
+JSON_DIR=./data/
+```
+
+### 환경 변수 설명
+
+| 변수            | 설명                   |
+| ------------- | -------------------- |
+| `DB_HOST`     | 데이터베이스 서버 주소         |
+| `DB_PORT`     | 데이터베이스 포트            |
+| `DB_USER`     | 데이터베이스 사용자명          |
+| `DB_PASSWORD` | 데이터베이스 비밀번호          |
+| `DB_NAME`     | 사용할 데이터베이스 이름        |
+| `CRAWL_URL`   | 크롤링할 FAQ 페이지 URL     |
+| `JSON_DIR`    | 크롤링 결과 JSON 파일 저장 경로 |
+
 ---
