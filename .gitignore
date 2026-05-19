@@ -21,7 +21,6 @@ Thumbs.db
 .env 
 
 # Etc..
-data/
 data_backup/
 logs/
 document/
