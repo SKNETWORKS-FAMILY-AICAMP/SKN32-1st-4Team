@@ -45,12 +45,6 @@ SK Networks AI CAMP 32기
 ![ERD](./database/erd.png)
 
 
-## Ⅳ. 스토리보드
-
-
-## 실제 동작 화면
-
-
 ### 환경설정
 
 * MySQL 데이터베이스 8.0 이상
