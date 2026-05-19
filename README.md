@@ -76,7 +76,7 @@ DB_PASSWORD={DB 비밀번호}
 DB_NAME=K_Car_Navigator
 
 # 크롤링 관련 설정
-CRAWL_URL=https://www.hyundai.com/kr/ko/e/customer/center/faq
+CRAWL_URLS={url,url,url}
 JSON_DIR=./data/
 ```
 
@@ -89,7 +89,7 @@ JSON_DIR=./data/
 | `DB_USER`     | 데이터베이스 사용자명          |
 | `DB_PASSWORD` | 데이터베이스 비밀번호          |
 | `DB_NAME`     | 사용할 데이터베이스 이름        |
-| `CRAWL_URL`   | 크롤링할 FAQ 페이지 URL     |
+| `CRAWL_URLS`   | 크롤링할 FAQ 페이지 URL     |
 | `JSON_DIR`    | 크롤링 결과 JSON 파일 저장 경로 |
 
 ---
