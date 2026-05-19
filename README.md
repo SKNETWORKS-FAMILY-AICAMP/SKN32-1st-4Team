@@ -48,8 +48,12 @@ SK Networks AI CAMP 32기
 ### 환경설정
 
 * MySQL 데이터베이스 8.0 이상
-* Python 라이브러리:
+* DataBase 생성:
+```bash
+mysql -u {계정명} -p  --default-character-set=utf8mb4 < database/init.sql
+```
 
+* Python 라이브러리 설치:
 ```bash
 pip install -r requirements.txt
 ```

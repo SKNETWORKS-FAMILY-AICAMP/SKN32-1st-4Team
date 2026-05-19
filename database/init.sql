@@ -1,5 +1,6 @@
-DROP DATABASE IF EXISTS K_Car_Navigator;
-CREATE DATABASE K_Car_Navigator;
+CREATE DATABASE if not exists K_Car_Navigator
+	default character set utf8mb4
+    collate utf8mb4_unicode_ci;
 USE K_Car_Navigator;
 DROP TABLE IF EXISTS faq;
 DROP TABLE IF EXISTS category;
