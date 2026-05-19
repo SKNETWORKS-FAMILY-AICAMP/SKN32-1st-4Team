@@ -208,7 +208,7 @@ else:
 metric1, metric2, metric3 = st.columns(3)
 
 with metric1:
-    st.metric("총 등록 차량 수", f"{total_vehicle:,} 대")
+    st.metric("월별 등록 건수 합계", f"{total_vehicle:,} 대")
 
 with metric2:
     st.metric("등록 차량 최다 지역", top_region)
