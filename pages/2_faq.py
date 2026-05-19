@@ -4,8 +4,6 @@ from models.models import FaqSearchDTO
 from service.faq_service import FAQService
 
 
-st.set_page_config(page_title="FAQ 조회", page_icon="?", layout="wide")
-
 PAGE_SIZE = 20
 
 
@@ -154,7 +152,7 @@ def load_faq_page(company_id, category_id, keyword, page, size):
     ))
 
 
-st.title("FAQ 조회")
+st.title("FAQ 센터")
 
 try:
     get_faq_service()

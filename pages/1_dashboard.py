@@ -81,15 +81,6 @@ def build_vehicle_geojson(region_df, json_path=GEOJSON_PATH):
 
 
 # -----------------------------
-# 페이지 설정
-# -----------------------------
-st.set_page_config(
-    page_title="자동차 등록 현황",
-    page_icon="car",
-    layout="wide",
-)
-
-# -----------------------------
 # 데이터 로드 및 등록월 가공
 # -----------------------------
 df = get_vehicle_data_from_db()
@@ -100,10 +91,10 @@ df["등록월"] = pd.to_datetime(df["등록월"]).dt.strftime("%Y-%m")
 # -----------------------------
 # 제목
 # -----------------------------
-st.title("전국 자동차 등록 현황")
+st.title("시장 인사이트")
 
 st.caption(
-    "지역별 자동차 등록 대수와 월별 등록 추이를 비교 조회할 수 있습니다."
+    "전국 자동차 등록 현황을 지역, 차량 종류, 월별 추이로 비교 조회합니다."
 )
 
 # -----------------------------
@@ -313,20 +304,21 @@ with type_col:
 
     else:
 
-        rank_colors = []
+        blue_scale = [
+            "#0B3D91",
+            "#1D4ED8",
+            "#2563EB",
+            "#3B82F6",
+            "#60A5FA",
+            "#93C5FD",
+            "#BFDBFE",
+            "#DBEAFE",
+        ]
 
-        for idx in range(len(car_chart_df)):
-
-            if idx == 0:
-                rank_colors.append("빨강")
-            elif idx == 1:
-                rank_colors.append("초록")
-            elif idx == 2:
-                rank_colors.append("노랑")
-            else:
-                rank_colors.append("파랑")
-
-        car_chart_df["색상"] = rank_colors
+        car_chart_df["막대색상"] = [
+            blue_scale[min(idx, len(blue_scale) - 1)]
+            for idx in range(len(car_chart_df))
+        ]
 
         fig_car = px.bar(
             car_chart_df,
@@ -334,12 +326,10 @@ with type_col:
             y="등록차량수",
             text="등록차량수",
             title="차량 종류별 등록 현황",
-            color="색상",
+            color="막대색상",
             color_discrete_map={
-                "빨강": "#ef4444",
-                "초록": "#22c55e",
-                "노랑": "#facc15",
-                "파랑": "#3b82f6",
+                color: color
+                for color in car_chart_df["막대색상"].unique()
             },
         )
 
