@@ -20,15 +20,17 @@ sample.xlsx
 
 python parsing.py
 실행 후
-->  district_insert.sql
+-> 테이블생성 
 
-    vehicle_registration_status_insert.sql 생성
+-> vehicle_type_insert.sql
+region_insert.sql
+district_insert.sql
+vehicle_registration_status_insert.sql
+순차 실행
 
-테이블 생성 후 
 
-car_type_insert.sql
-district_insert.sql 
-
+ 분할 sql
+ 
 vehicle_registration_status_insert_1.sql
 vehicle_registration_status_insert_2.sql
 vehicle_registration_status_insert_3.sql
