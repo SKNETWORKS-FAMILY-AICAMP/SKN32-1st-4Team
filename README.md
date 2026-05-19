@@ -16,7 +16,7 @@ SK Networks AI CAMP 32기
 | 신누리 | 정재희 | 이서은 | 이호원 |
 |:----------:|:----------:|:----------:|:----------:|
 |DB 설계<br>FAQ 크롤링|화면 기획<br>Dashboard 화면 구현|화면 기획<br>Dashboard, FAQ 화면 구현|차량 등록 현황 데이터 파싱|
-| [@4nchez](https://github.com/4nchez) | [@jjh430](https://github.com/jjh430) | [@Cinccinoo](https://github.com/Cinccinoo) | [@coreawon09](https://github.com/coreawon09) |
+| [GitHub](https://github.com/4nchez) | [GitHub](https://github.com/jjh430) | [GitHub](https://github.com/Cinccinoo) | [GitHub](https://github.com/coreawon09) |
 
 ## Ⅱ. 프로젝트 구현 사항
 ### 1. 전국 자동차 등록 현황 조회 🚗
