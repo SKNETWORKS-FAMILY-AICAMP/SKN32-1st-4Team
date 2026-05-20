@@ -262,12 +262,12 @@ class DBService(SqlQueryBuilder):
         # 만약 페이징을 한다면.. 총 카운트도 반환
         if param_dto.get_pages is True:
             base_sql = """
-                SELECT pk, type, registration_date, vehicles, region, district,
+                SELECT id, type, registration_date, vehicles, region, district,
                         COUNT(*) OVER() as total_count
                 FROM vehicle_registration_status"""
         else:
             base_sql = """
-                SELECT pk, type, registration_date, vehicles, region, district
+                SELECT id, type, registration_date, vehicles, region, district
                 FROM vehicle_registration_status"""
 
         list_filters = {

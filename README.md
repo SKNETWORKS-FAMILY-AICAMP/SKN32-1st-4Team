@@ -41,7 +41,113 @@ SK Networks AI CAMP 32기
 이를 통해 사용자는 여러 브랜드의 공식 정보를 빠르게 탐색할 수 있으며, 필요한 정보를 보다 편리하게 확인할 수 있음
 
 
-## Ⅲ. ER Diagram
+## Ⅲ. 데이터베이스 설계 문서
+### 테이블 정의서
+
+#### 1. company (자동차 회사 테이블)
+
+| 컬럼명        | 타입           | NULL     | KEY | DEFAULT           | 설명    |
+| ---------- | ------------ | -------- | --- | ----------------- | ----- |
+| id         | INT          | NOT NULL | PK  | AUTO_INCREMENT    | 회사_id |
+| name       | VARCHAR(255) | NOT NULL |     |                   | 회사명   |
+| created_at | TIMESTAMP    | NULL     |     | CURRENT_TIMESTAMP | 등록일   |
+
+---
+
+#### 2. category (FAQ 카테고리 코드 테이블)
+
+| 컬럼명           | 타입           | NULL     | KEY | DEFAULT           | 설명      |
+| ------------- | ------------ | -------- | --- | ----------------- | ------- |
+| id            | INT          | NOT NULL | PK  | AUTO_INCREMENT    | 카테고리_id |
+| company_id    | INT          | NOT NULL | FK  |                   | 회사_id   |
+| name          | VARCHAR(255) | NOT NULL |     |                   | 카테고리명   |
+| display_order | INT          | NULL     |     | 0                 | 카테고리 순서 |
+| created_at    | TIMESTAMP    | NULL     |     | CURRENT_TIMESTAMP | 등록일     |
+
+#### FK 정보
+
+| FK 컬럼      | 참조 테이블  | 참조 컬럼 |
+| ---------- | ------- | ----- |
+| company_id | company | id    |
+
+---
+
+#### 3. faq (FAQ 테이블)
+
+| 컬럼명         | 타입        | NULL     | KEY | DEFAULT           | 설명      |
+| ----------- | --------- | -------- | --- | ----------------- | ------- |
+| id          | INT       | NOT NULL | PK  | AUTO_INCREMENT    | faq_id  |
+| company_id  | INT       | NOT NULL | FK  |                   | 회사_id   |
+| category_id | INT       | NULL     | FK  | NULL              | 카테고리_id |
+| question    | TEXT      | NOT NULL |     |                   | 질문      |
+| answer      | TEXT      | NOT NULL |     |                   | 답변      |
+| created_at  | TIMESTAMP | NULL     |     | CURRENT_TIMESTAMP | 등록일     |
+
+#### FK 정보
+
+| FK 컬럼       | 참조 테이블   | 참조 컬럼 |
+| ----------- | -------- | ----- |
+| company_id  | company  | id    |
+| category_id | category | id    |
+
+---
+
+#### 4. vehicle_type (차량 종류 코드 테이블)
+
+| 컬럼명  | 타입          | NULL     | KEY | DEFAULT | 설명                                        |
+| ---- | ----------- | -------- | --- | ------- | ----------------------------------------- |
+| code | CHAR(2)     | NOT NULL | PK  |         | 차량 종류 코드 (01: 승용, 02: 승합, 03: 화물, 04: 특수) |
+| name | VARCHAR(20) | NOT NULL |     |         | 차량 종류 명칭                                  |
+
+---
+
+#### 5. region (시도 코드 테이블)
+
+| 컬럼명  | 타입          | NULL     | KEY | DEFAULT | 설명    |
+| ---- | ----------- | -------- | --- | ------- | ----- |
+| code | CHAR(2)     | NOT NULL | PK  |         | 시도 코드 |
+| name | VARCHAR(20) | NOT NULL |     |         | 시도 명칭 |
+
+---
+
+#### 6. district (시군구 코드 테이블)
+
+| 컬럼명         | 타입          | NULL     | KEY | DEFAULT | 설명       |
+| ----------- | ----------- | -------- | --- | ------- | -------- |
+| code        | CHAR(4)     | NOT NULL | PK  |         | 시군구 코드   |
+| region_code | CHAR(2)     | NOT NULL | FK  |         | 상위 시도 코드 |
+| name        | VARCHAR(50) | NOT NULL |     |         | 시군구 명칭   |
+
+#### FK 정보
+
+| FK 컬럼       | 참조 테이블 | 참조 컬럼 |
+| ----------- | ------ | ----- |
+| region_code | region | code  |
+
+---
+
+#### 7. vehicle_registration_status (자동차 등록 현황 테이블)
+
+| 컬럼명               | 타입      | NULL     | KEY | DEFAULT        | 설명                               |
+| ----------------- | ------- | -------- | --- | -------------- | -------------------------------- |
+| id                | INT     | NOT NULL | PK  | AUTO_INCREMENT | 자동 증가 기본키                        |
+| type              | CHAR(2) | NOT NULL | FK  |                | 차량 종류 코드 (FK: vehicle_type.code) |
+| registration_date | DATE    | NOT NULL |     |                | 등록일                              |
+| vehicles          | INT     | NOT NULL |     |                | 등록 차량 수                          |
+| region            | CHAR(2) | NOT NULL | FK  |                | 시도 코드 (FK: region.code)          |
+| district          | CHAR(4) | NOT NULL | FK  |                | 시군구 코드 (FK: district.code)       |
+
+#### FK 정보
+
+| FK 컬럼    | 참조 테이블       | 참조 컬럼 |
+| -------- | ------------ | ----- |
+| type     | vehicle_type | code  |
+| region   | region       | code  |
+| district | district     | code  |
+
+---
+
+### ER Diagram
 ![ERD](./database/erd.png)
 
 

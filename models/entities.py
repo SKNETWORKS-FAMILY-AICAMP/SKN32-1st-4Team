@@ -48,7 +48,7 @@ class DistrictEntity:
 
 @dataclass
 class VehicleRegistrationStatusEntity:
-    pk: int
+    id: int
     type: str  # CHAR(2)
     registration_date: date
     vehicles: int

@@ -56,7 +56,7 @@ CREATE TABLE district (
 
 CREATE TABLE vehicle_registration_status
 (
-  pk                INT AUTO_INCREMENT PRIMARY KEY COMMENT '자동 증가 기본키',
+  id                INT AUTO_INCREMENT PRIMARY KEY COMMENT '자동 증가 기본키',
   type              CHAR(2) NOT NULL COMMENT '차량 종류 코드 (FK: vehicle_type.code)',
   registration_date DATE NOT NULL COMMENT '등록일',
   vehicles          INT NOT NULL COMMENT '등록 차량 수',
